@@ -16,7 +16,7 @@
     "rate-limits"
   ],
   "license": "MIT",
-  "author": "krishtimil",
+  "author": "Krishant Timilsina",
   "repository": "github:krishtimil/opencode-go-usage",
   "exports": {
     ".": "./index.ts",

@@ -1,0 +1,45 @@
+name: publish
+
+# Publishes to npm only when the version in package.json is new.
+# Auth is OIDC trusted publishing: no tokens or secrets in this repo.
+# One-time setup on npmjs.com: package Settings -> Trusted Publishers ->
+# GitHub Actions, repo krishantt/opencode-go-usage, workflow publish.yml.
+
+on:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - id: version
+        run: |
+          name=$(node -p "require('./package.json').name")
+          local=$(node -p "require('./package.json').version")
+          published=$(npm view "$name" version 2>/dev/null || echo 0.0.0)
+          if [ "$local" = "$published" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$name@$local already published, skipping"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::publishing $name@$local (registry has $published)"
+          fi
+
+      - if: steps.version.outputs.publish == 'true'
+        run: npm publish --provenance --access public

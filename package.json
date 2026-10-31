@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@krishtimil/opencode-go-usage",
+  "name": "@krishantt/opencode-go-usage",
   "version": "0.1.0",
   "type": "module",
   "description": "OpenCode TUI plugin: OpenCode Go usage limits plus burn-rate pacing warnings in the status bar",
@@ -17,7 +17,7 @@
   ],
   "license": "MIT",
   "author": "Krishant Timilsina",
-  "repository": "github:krishtimil/opencode-go-usage",
+  "repository": "github:krishantt/opencode-go-usage",
   "exports": {
     ".": "./index.ts",
     "./tui": "./tui.tsx"

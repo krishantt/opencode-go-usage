@@ -1,4 +1,4 @@
-# @krishtimil/opencode-go-usage
+# @krishantt/opencode-go-usage
 
 OpenCode Go usage limits — with burn-rate pacing — in the OpenCode TUI status bar.
 
@@ -16,7 +16,7 @@ Requires OpenCode v2.2+ and the OpenCode Go provider.
 
 ```json title="~/.config/opencode/cli.json"
 {
-  "plugins": ["@krishtimil/opencode-go-usage"]
+  "plugins": ["@krishantt/opencode-go-usage"]
 }
 ```
 

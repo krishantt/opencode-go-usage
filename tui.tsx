@@ -1,4 +1,5 @@
 import { Plugin } from "@opencode/plugin/tui"
+import { jsx } from "@opentui/solid/jsx-runtime"
 import { appendFileSync } from "node:fs"
 
 // debug sink, written when the toggle flag is on
@@ -86,11 +87,13 @@ export default Plugin.define({
     }, 10_000)
     const timer = setInterval(refresh, 60_000)
 
+    // no JSX syntax: OpenCode's solid transform skips node_modules, and Bun's
+    // default JSX would import react, so call the solid runtime directly.
     const render = () => {
       if (!state.ok)
-        return <text fg={context.theme.text.muted}>{"GO ?"}</text>
+        return jsx("text", { fg: context.theme.text.muted, children: "GO ?" })
       if (state.windows.length === 0)
-        return <text fg={context.theme.text.muted}>{"GO ⋯"}</text>
+        return jsx("text", { fg: context.theme.text.muted, children: "GO ⋯" })
       const parts = state.windows.map((w: Window, i: number) => {
         const pct = Math.round(w.percent ?? 0)
         // glyph prefix stands in for color: ! = rate-limited, ▲ = nearly spent
@@ -99,7 +102,7 @@ export default Plugin.define({
         const warn = pace(state.samples.map((s: Sample) => ({ t: s.t, p: s.p[i] ?? 0 })), w.resetsAt, Date.now())
         return `${mark}${["r", "w", "m"][i]}${pct}%${reset}${warn}`
       })
-      return <text fg={context.theme.text.muted}>{`GO ${parts.join(" · ")}`}</text>
+      return jsx("text", { fg: context.theme.text.muted, children: `GO ${parts.join(" · ")}` })
     }
 
     context.ui.slot({ append: "prompt.footer.status", render })

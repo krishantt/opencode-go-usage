@@ -1,0 +1,7 @@
+{
+  "//": "Bun reads this file when transpiling tui.tsx. OpenCode's TUI solid-transform skips node_modules paths, so the npm-installed copy relies on Bun's default JSX unless this sets the opentui runtime.",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "@opentui/solid"
+  }
+}

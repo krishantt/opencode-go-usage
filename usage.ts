@@ -3,6 +3,23 @@ export type Window = { percent?: number, resetsAt?: number, limited?: boolean }
 // Burn-rate history: one sample per poll with all three windows; 6h cap.
 export type Sample = { t: number, p: number[] }
 
+// "out" = signed in nowhere, "err" = fetch or payload problem; both look the
+// same to the endpoint (200) but mean different things to the user.
+export type Mode = "loading" | "ok" | "out" | "err"
+
+// Envelope: { location, data: { go } }, data null when the location is not
+// signed in to a Console workspace. Older clients return the payload bare.
+export function parse(res: unknown): { windows: Window[] } | "out" | "err" {
+  if (res == null) return "err"
+  const env = res as { data?: unknown }
+  const data = "data" in env ? env.data : res
+  if (data == null) return "out"
+  const go = (data as { go?: Record<string, unknown> }).go
+  if (!go?.rolling) return "err"
+  const pick = (w: unknown) => (w ?? {}) as Window
+  return { windows: [pick(go.rolling), pick(go.weekly), pick(go.monthly)] }
+}
+
 // Humanize milliseconds to a compact duration like 4h or 2d.
 export function human(ms: number): string {
   if (ms < 0) return "now"

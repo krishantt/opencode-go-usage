@@ -1,10 +1,31 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
-import { human, pace } from "./usage.ts"
+import { human, pace, parse } from "./usage.ts"
 
 const H = 3.6e6
 const now = 1_700_000_000_000
+
+test("parse unwraps the usage envelope", () => {
+  const go = {
+    rolling: { percent: 4.5, limited: false, resetsAt: 1 },
+    weekly: { percent: 42, limited: false, resetsAt: 2 },
+    monthly: { percent: 21, limited: false, resetsAt: 3 },
+  }
+  const windows = { windows: [go.rolling, go.weekly, go.monthly] }
+  assert.deepEqual(parse({ location: {}, data: { go } }), windows)
+  // older clients return the payload without the envelope
+  assert.deepEqual(parse({ go }), windows)
+})
+
+test("parse distinguishes a signed-out location from a bad payload", () => {
+  // 200 with data:null is what an API-key-only credential produces
+  assert.equal(parse({ location: {}, data: null }), "out")
+  assert.equal(parse({ go: null }), "err")
+  assert.equal(parse({ data: {} }), "err")
+  assert.equal(parse({ data: { go: {} } }), "err")
+  assert.equal(parse(null), "err")
+})
 
 test("human formats compact durations", () => {
   assert.equal(human(-1), "now")

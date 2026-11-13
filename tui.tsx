@@ -1,7 +1,7 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { jsx } from "@opentui/solid/jsx-runtime"
 import { appendFileSync } from "node:fs"
-import { human, pace, type Sample, type Window } from "./usage"
+import { human, parse, pace, type Mode, type Sample, type Window } from "./usage"
 
 // debug sink, written when the toggle flag is on
 const DEBUG_LOG = `${process.env.HOME}/.cache/opencode/go-usage-debug.log`
@@ -9,9 +9,9 @@ const DEBUG_LOG = `${process.env.HOME}/.cache/opencode/go-usage-debug.log`
 export default Plugin.define({
   id: "go-usage",
   setup(context) {
-    // windows: go rolling/weekly/monthly; ok=false -> "GO ?"
+    // windows: go rolling/weekly/monthly; mode err -> "GO ?", out -> "GO –"
     const [state, update] = context.storage.memory("go-usage", {
-      initial: { windows: [] as Window[], ok: true, samples: [] as Sample[], dbg: false },
+      initial: { windows: [] as Window[], mode: "loading" as Mode, samples: [] as Sample[], dbg: false },
     })
     const dbg = (msg: string) => {
       if (!state.dbg) return
@@ -23,19 +23,22 @@ export default Plugin.define({
     const call = anyClient?.experimental?.usage?.limits ?? anyClient?.usage?.limits
 
     const refresh = async () => {
-      if (!call) { update((d) => { d.ok = false }); dbg("client method missing"); return }
+      if (!call) { update((d) => { d.mode = "err" }); dbg("client method missing"); return }
       try {
         const res = await call()
         dbg(`raw: ${JSON.stringify(res)?.slice(0, 300) ?? String(res)}`)
-        const data = res?.data ?? res
-        const go = data?.go
-        if (!go) throw new Error("no go data")
-        const pick = (w: unknown) => (w ?? {}) as Window
+        const parsed = parse(res)
+        if (parsed === "err") throw new Error("unexpected usage payload")
+        if (parsed === "out") {
+          dbg("not signed in to a Console workspace")
+          update((d) => { d.mode = "out" })
+          return
+        }
         update((d) => {
-          d.ok = true
-          d.windows = [pick(go.rolling), pick(go.weekly), pick(go.monthly)]
+          d.mode = "ok"
+          d.windows = parsed.windows
           // memory store predating samples (hot reload) and fetch errors both land here
-          d.samples = (d.samples ?? []).concat({ t: Date.now(), p: d.windows.map((w: Window) => Math.round(w.percent ?? 0)) })
+          d.samples = (d.samples ?? []).concat({ t: Date.now(), p: d.windows.map((w: Window) => w.percent ?? 0) })
           const cutoff = Date.now() - 6 * 3.6e6
           d.samples = d.samples.filter((s: Sample) => s.t > cutoff).slice(-400)
         })
@@ -43,22 +46,24 @@ export default Plugin.define({
       catch (e) {
         dbg(`error: ${e instanceof Error ? e.stack : String(e)}`)
         update((d) => {
-          d.ok = false
+          d.mode = "err"
         })
       }
     }
     refresh()
     // a fetch that hangs must not blank the status bar forever
     const failTimer = setTimeout(() => {
-      if (state.windows.length === 0) update((d) => { d.ok = false })
+      if (state.mode === "loading") update((d) => { d.mode = "err" })
     }, 10_000)
     const timer = setInterval(refresh, 60_000)
 
     // no JSX syntax: OpenCode's solid transform skips node_modules, and Bun's
     // default JSX would import react, so call the solid runtime directly.
     const render = () => {
-      if (!state.ok)
+      if (state.mode === "err")
         return jsx("text", { fg: context.theme.text.muted, children: "GO ?" })
+      if (state.mode === "out")
+        return jsx("text", { fg: context.theme.text.muted, children: "GO –" })
       if (state.windows.length === 0)
         return jsx("text", { fg: context.theme.text.muted, children: "GO ⋯" })
       const parts = state.windows.map((w: Window, i: number) => {

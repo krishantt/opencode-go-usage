@@ -18,7 +18,7 @@ try {
   if (typeof plugin?.setup !== "function") throw new Error("tui.tsx did not export a plugin with setup()")
 
   const now = Date.now()
-  const state = { windows: [], ok: true, samples: [], dbg: false }
+  const state = { windows: [], mode: "loading", samples: [], dbg: false }
   const renders: unknown[] = []
   const ctx = {
     storage: {
@@ -51,12 +51,23 @@ try {
   await new Promise((resolve) => setTimeout(resolve, 50))
 
   if (renders.length !== 2) throw new Error(`expected 2 status slots, got ${renders.length}`)
+  if (state.mode !== "ok") throw new Error(`expected mode ok, got ${state.mode}`)
   if (state.windows.length !== 3) throw new Error("windows were not populated from the envelope")
   const percents = state.windows.map((w: { percent: number }) => w.percent).join(",")
   if (percents !== "4,42,21") throw new Error(`unexpected percents: ${percents}`)
 
   dispose()
-  console.log(`bun load check: ok (r4, w42, m21)`)
+
+  // the API-key-only shape: 200 with data:null must read as signed-out, not failed
+  const disposeOut = plugin.setup({
+    ...ctx,
+    client: { experimental: { usage: { limits: async () => ({ location: {}, data: null }) } } },
+  })
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  if ((state.mode as string) !== "out") throw new Error(`expected mode out for data:null, got ${state.mode}`)
+  disposeOut()
+
+  console.log(`bun load check: ok (r4, w42, m21; data:null -> out)`)
 } finally {
   await rm(join(root, "node_modules", ".load-check"), { recursive: true, force: true })
 }
